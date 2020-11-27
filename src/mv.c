@@ -344,6 +344,7 @@ main (int argc, char **argv)
   struct cp_options x;
   char *target_directory = NULL;
   bool no_target_directory = false;
+  bool create_dir = false;
   int n_files;
   char **file;
   bool selinux_enabled = (0 < is_selinux_enabled ());
@@ -361,11 +362,14 @@ main (int argc, char **argv)
   /* Try to disable the ability to unlink a directory.  */
   priv_set_remove_linkdir ();
 
-  while ((c = getopt_long (argc, argv, "bfint:uvS:TZ", long_options, NULL))
+  while ((c = getopt_long (argc, argv, "cbfint:uvS:TZ", long_options, NULL))
          != -1)
     {
       switch (c)
         {
+        case 'c':
+          create_dir = true;
+          break;
         case 'b':
           make_backups = true;
           if (optarg)
@@ -432,6 +436,23 @@ main (int argc, char **argv)
   n_files = argc - optind;
   file = argv + optind;
 
+  if (create_dir == true) {
+    DIR* dir = opendir(file[n_files - 1]);
+    if (dir) {
+        // directory already exists
+        printf("%s already exists\n", file[n_files - 1]);
+    }
+    else if (errno == ENOENT) {
+      if (mkdir(file[n_files - 1], 0777) == 0) {
+        printf("Folder %s created\n", file[n_files - 1]);
+        argc++;
+      } else {
+        printf("Unable to create Folder %s\n", file[n_files - 1]);
+      }
+    }
+    closedir(dir);
+  }
+
   if (n_files <= !target_directory)
     {
       if (n_files <= 0)
@@ -466,9 +487,10 @@ main (int argc, char **argv)
           x.rename_errno = -1;
           target_directory = file[--n_files];
         }
-      else if (2 < n_files)
+      else if (2 < n_files) {
         die (EXIT_FAILURE, 0, _("target %s is not a directory"),
              quoteaf (file[n_files - 1]));
+      }
     }
 
   if (x.interactive == I_ALWAYS_NO)
